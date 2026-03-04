@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario UPS — Compras y Almacén</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #2d3748;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --danger: #f85149;
+    --gold: #e3b341;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --input-bg: #0d1117;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 10% 50%, rgba(88,166,255,.08) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 60% at 90% 30%, rgba(63,185,80,.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-inner { position: relative; max-width: 960px; margin: 0 auto; }
+  .header-badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(88,166,255,.3);
+    border-radius: 20px;
+    padding: 3px 12px;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  h1 span { color: var(--accent); }
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 300;
+  }
+
+  /* ── Layout ── */
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 40px 60px;
+    display: grid;
+    gap: 24px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 22px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    background: rgba(88,166,255,.12);
+    border: 1px solid rgba(88,166,255,.2);
+  }
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .card-body { padding: 22px; }
+
+  /* ── Form grid ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 7px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+  label span { color: var(--danger); margin-left: 2px; }
+
+  input, select, textarea {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+    width: 100%;
+    appearance: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88,166,255,.12);
+  }
+  input::placeholder { color: #3d4550; }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8590' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 38px;
+    cursor: pointer;
+  }
+  select option { background: #1c2333; }
+
+  /* ── Buttons ── */
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    transition: all .18s;
+  }
+  .btn-primary {
+    background: var(--accent2);
+    color: #0d1117;
+  }
+  .btn-primary:hover { background: #56d364; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(63,185,80,.3); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--danger); color: var(--danger); background: rgba(248,81,73,.06); }
+  .btn-export {
+    background: rgba(88,166,255,.1);
+    color: var(--accent);
+    border: 1px solid rgba(88,166,255,.25);
+    margin-left: auto;
+  }
+  .btn-export:hover { background: rgba(88,166,255,.2); transform: translateY(-1px); }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 1000;
+    pointer-events: none;
+    max-width: 340px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { background: #1a3a24; border: 1px solid var(--accent2); color: var(--accent2); }
+  #toast.error   { background: #3a1a1a; border: 1px solid var(--danger); color: var(--danger); }
+
+  /* ── Table ── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    min-width: 700px;
+  }
+  thead tr {
+    background: var(--surface2);
+    border-bottom: 2px solid var(--border);
+  }
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(45,55,72,.6);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: rgba(88,166,255,.04); }
+  td {
+    padding: 9px 14px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+  td:first-child {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .empty-state {
+    text-align: center;
+    padding: 44px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .empty-state .icon { font-size: 32px; display: block; margin-bottom: 10px; opacity: .4; }
+
+  /* ── Badge diagnóstico ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .badge-ok    { background: rgba(63,185,80,.15);  color: #3fb950; border: 1px solid rgba(63,185,80,.25); }
+  .badge-reg   { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.2); }
+  .badge-bad   { background: rgba(248,81,73,.12);  color: #f85149; border: 1px solid rgba(248,81,73,.2); }
+  .badge-new   { background: rgba(227,179,65,.12); color: #e3b341; border: 1px solid rgba(227,179,65,.2); }
+
+  /* ── Counter ── */
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .stat {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .stat strong { color: var(--text); font-size: 15px; }
+
+  .delete-btn {
+    background: none; border: none; cursor: pointer;
+    color: #3d4550;
+    font-size: 15px;
+    transition: color .15s;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .delete-btn:hover { color: var(--danger); background: rgba(248,81,73,.1); }
+
+  @media (max-width: 640px) {
+    main { padding: 16px; }
+    header { padding: 20px 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .btn-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-badge">Sistema de Inventario</div>
+    <h1>Inventario de <span>UPS</span></h1>
+    <p class="header-sub">Compras y Almacén — Registro y control de equipos</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- FORM CARD -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon">📝</div>
+      <span class="card-title">Nuevo Registro</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>N° de Registro <span>*</span></label>
+          <input id="f-numero" type="text" placeholder="Ej: 53">
+        </div>
+
+        <div class="form-group">
+          <label>Placa Patrimonial</label>
+          <input id="f-placa" type="text" placeholder="Ej: 186048 / SIN PLACA">
+        </div>
+
+        <div class="form-group">
+          <label>Marca <span>*</span></label>
+          <input id="f-marca" type="text" placeholder="Ej: APC, TRIPP-LITE…" list="lista-marcas">
+          <datalist id="lista-marcas">
+            <option value="TRIPP-LITE">
+            <option value="APC">
+            <option value="SMARTBITT">
+            <option value="MINUTEMAN">
+            <option value="FORZA POWER TECHNOLOGIES">
+            <option value="CENTRA">
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label>Usuario</label>
+          <input id="f-usuario" type="text" placeholder="Nombre del usuario o SIN USUARIO">
+        </div>
+
+        <div class="form-group">
+          <label>Modelo <span>*</span></label>
+          <input id="f-modelo" type="text" placeholder="Ej: BV1000, SMART 1000LCD…">
+        </div>
+
+        <div class="form-group">
+          <label>Diagnóstico <span>*</span></label>
+          <select id="f-diagnostico">
+            <option value="" disabled selected>Seleccionar…</option>
+            <option>BUEN ESTADO</option>
+            <option>SOLO REGLETA</option>
+            <option>DAÑADA</option>
+            <option>NUEVO</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>N° de Serie</label>
+          <input id="f-serie" type="text" placeholder="Número de serie del equipo">
+        </div>
+
+        <div class="form-group">
+          <label>Departamento <span>*</span></label>
+          <select id="f-departamento">
+            <option value="" disabled selected>Seleccionar…</option>
+            <option>ALMACEN</option>
+            <option>COMPRAS</option>
+            <option>ADMINISTRACIÓN</option>
+            <option>PRESUPUESTO</option>
+            <option>CONTABILIDAD</option>
+            <option>TESORERÍA</option>
+            <option>ASESORÍA LEGAL</option>
+            <option>SUB. DIR. ADMIN. DE FINANZAS</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="btn-row" style="margin-top:22px;">
+        <button class="btn btn-primary" onclick="agregarRegistro()">
+          ✚ Agregar Registro
+        </button>
+        <button class="btn btn-secondary" onclick="limpiarFormulario()">
+          ✕ Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE CARD -->
+  <div class="card">
+    <div class="card-header" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="card-header-icon">📋</div>
+        <span class="card-title">Registros Guardados</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="stats-row" id="stats"></div>
+        <button class="btn btn-export" onclick="exportarExcel()">
+          ⬇ Exportar Excel
+        </button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrap">
+        <table id="tabla">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>N° Reg.</th>
+              <th>Marca</th>
+              <th>Modelo</th>
+              <th>Serie</th>
+              <th>Placa</th>
+              <th>Usuario</th>
+              <th>Diagnóstico</th>
+              <th>Departamento</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body">
+            <tr>
+              <td colspan="10">
+                <div class="empty-state">
+                  <span class="icon">📦</span>
+                  Aún no hay registros. ¡Agrega el primero usando el formulario!
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+let registros = [];
+
+// ── Pre-cargar datos del inventario original ──────────────────────────────
+const datosIniciales = [
+  [1,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401158','182789','CHAI','SOLO REGLETA','ALMACEN'],
+  [2,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401774','182790','JISSLEN','SOLO REGLETA','ALMACEN'],
+  [3,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401775','182791','ELVIS AGUIRRE','SOLO REGLETA','ALMACEN'],
+  [4,'SMARTBITT','SBNB1000DR','312105500864','SIN PLACA','MARIA','BUEN ESTADO','ALMACEN'],
+  [5,'SMARTBITT','SBNB1000DR','312105500861','185323','CARLOS BATISTA','BUEN ESTADO','ALMACEN'],
+  [6,'FORZA POWER TECHNOLOGIES','LS-801UL','*210132500480*','SIN PLACA','PEDRO','SOLO REGLETA','ALMACEN'],
+  [7,'MINUTEMAN','MM-AVR 1200','NE64110990210','168609','SIN USUARIO','DAÑADA','ALMACEN'],
+  [8,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401159','182788','SIN USUARIO','DAÑADA','ALMACEN'],
+  [9,'TRIPP-LITE','INTERNET750U','9618AY0BC659800403','154770','SIN USUARIO','DAÑADA','ALMACEN'],
+  [10,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401171','182785','MARITZA PELICOT','SOLO REGLETA','COMPRAS'],
+  [11,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401153','182787','SIN USUARIO','SOLO REGLETA','COMPRAS'],
+  [12,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401154','182784','SIN USUARIO','SOLO REGLETA','COMPRAS'],
+  [13,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401169','182786','SILVIO','BUEN ESTADO','COMPRAS'],
+  [14,'TRIPP-LITE','SMART 1000LCD','SIN NUMERO DE SERIE VISIBLE','182786','CESAR ZAMBRANO','SOLO REGLETA','COMPRAS'],
+  [15,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401167','182777','ZAUL','SOLO REGLETA','COMPRAS'],
+  [16,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401996','182990','ZAYARIS','SOLO REGLETA','COMPRAS'],
+  [17,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401175','182774','ZUGEDI','SOLO REGLETA','COMPRAS'],
+  [18,'TRIPP-LITE','INTERNET750U','9623AY0BC659802738','154741','SIN USUARIO','DAÑADA','COMPRAS'],
+  [19,'TRIPP-LITE','INTERNET750U','9635AY0BC659803015','162870','SAMUEL','SOLO REGLETA','COMPRAS'],
+  [20,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401156','182773','SIN USUARIO','SOLO REGLETA','COMPRAS'],
+  [21,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401194','182779','SAMUEL','SOLO REGLETA','COMPRAS'],
+  [22,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401155','182772','RUBEN','SOLO REGLETA','COMPRAS'],
+  [23,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401173','182783','ERIC BALLESTEROS','SOLO REGLETA','COMPRAS'],
+  [24,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401190','182780','AYLEGNIS CASTILLO','SOLO REGLETA','COMPRAS'],
+  [25,'FORZA POWER TECHNOLOGIES','LS-801UL','*200832500184*','185054','NORIS PLACIO','BUEN ESTADO','ADMINISTRACIÓN'],
+  [26,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401214','182761','NORALIS JUSTINIANI','SOLO REGLETA','ADMINISTRACIÓN'],
+  [27,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401200','182762','BELLA CASTRO','SOLO REGLETA','ADMINISTRACIÓN'],
+  [28,'MINUTEMAN','MM-AVR 1200','NE64110990193','168587','ELSA BUSTAMANTE DE ARBOLEDA','SOLO REGLETA','PRESUPUESTO'],
+  [29,'TRIPP-LITE','SMART 750USB','9419BY0SM513601993','SIN PLACA','ORTENCIA HALL','SOLO REGLETA','PRESUPUESTO'],
+  [30,'MINUTEMAN','MM-AVR 1200','NE64110990194','168586','ORTENCIA HALL','DAÑADA','PRESUPUESTO'],
+  [31,'TRIPP-LITE','INTERNET750U','9618AY0BC659800415','144698','SIN USUARIO','DAÑADA','PRESUPUESTO'],
+  [32,'MINUTEMAN','MM-AVR 1200','NE64110990134','168585','SIN USUARIO','DAÑADA','PRESUPUESTO'],
+  [33,'TRIPP-LITE','INTERNET750U','9634AY0BC659800444','161983','SIN USUARIO','SOLO REGLETA','PRESUPUESTO'],
+  [34,'MINUTEMAN','MM-AVR 1200','NE64110990133','168584','SIN USUARIO','DAÑADA','PRESUPUESTO'],
+  [35,'TRIPP-LITE','LS-801UL','*200832500181*','SIN PLACA','ARTURO CAMPOS','SOLO REGLETA','PRESUPUESTO'],
+  [36,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401777','182768','EDWIN CABALLERO','SOLO REGLETA','CONTABILIDAD'],
+  [37,'SMARTBITT','SBNB1000DR','3121105501002','SIN PLACA','ERNESTINA CRUZ','SOLO REGLETA','CONTABILIDAD'],
+  [38,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401779','182771','SIN USUARIO','DAÑADA','CONTABILIDAD'],
+  [39,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401778','182769','MARTHA ZAES','SOLO REGLETA','CONTABILIDAD'],
+  [40,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401192','182766','FERNANDO RODRÍGUEZ','SOLO REGLETA','CONTABILIDAD'],
+  [41,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401813','182765','SIN USUARIO','SOLO REGLETA','CONTABILIDAD'],
+  [42,'TRIPP-LITE','SMART 1000LCD','2814DVHSM879401188','182767','IRINA BARRIA','SOLO REGLETA','CONTABILIDAD'],
+  [43,'TRIPP-LITE','INTERNET750U','9904PY0BC575801680','163567','LIC. BARCAS NEGRAS','SOLO REGLETA','TESORERÍA'],
+  [44,'CENTRA','SMART CENTRA 500','*316611285*','152750','ADIS ALVENDRA','SOLO REGLETA','TESORERÍA'],
+  [45,'TRIPP-LITE','INTERNET750U','9618AY0BC659800324','154711','JUDITH','SOLO REGLETA','TESORERÍA'],
+  [46,'TRIPP-LITE','INTERNET750U','9618AY0BC659800430','SIN PLACA','MARYORIE','SOLO REGLETA','TESORERÍA'],
+  [47,'TRIPP-LITE','INTERNET750U','9632AY0BC659801504','156349','IBETH','SOLO REGLETA','TESORERÍA'],
+  [48,'TRIPP-LITE','INTERNET750U','9623AY0BC659802740','154743','EVELYN LARA','SOLO REGLETA','TESORERÍA'],
+  [49,'TRIPP-LITE','INTERNET750U','9618AY0BC659800323','154710','NIDIA','SOLO REGLETA','TESORERÍA'],
+  [50,'APC','BR700G','3B1111X03521','175644','BREDIO','SOLO REGLETA','SUB. DIR. ADMIN. DE FINANZAS'],
+  [51,'FORZA POWER TECHNOLOGIES','LS-801UL','*200832500182*','185034','BREDIO','SOLO REGLETA','SUB. DIR. ADMIN. DE FINANZAS'],
+  [52,'TRIPP-LITE','ECO750UPS','2109HY0BC706000143','168763','SIN USUARIO','SOLO REGLETA','SUB. DIR. ADMIN. DE FINANZAS'],
+  ['','APC','BV1000','9B2350A27201','186048','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A27202','186049','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A27203','186050','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A27204','186051','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17399','186052','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17400','186053','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17401','186054','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17402','186055','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A26981','186056','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A26982','186057','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A26983','186058','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A26984','186059','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17447','186060','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17448','186061','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17449','186062','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A17450','186063','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A27187','186064','','NUEVO','ASESORÍA LEGAL'],
+  ['','APC','BV1000','9B2350A27188','186065','','NUEVO','ASESORÍA LEGAL'],
+];
+
+datosIniciales.forEach(d => {
+  registros.push({
+    numero: d[0], marca: d[1], modelo: d[2], serie: d[3],
+    placa: d[4], usuario: d[5], diagnostico: d[6], departamento: d[7]
+  });
+});
+
+renderTabla();
+
+// ── Agregar registro ──────────────────────────────────────────────────────
+function agregarRegistro() {
+  const numero      = document.getElementById('f-numero').value.trim();
+  const marca       = document.getElementById('f-marca').value.trim();
+  const modelo      = document.getElementById('f-modelo').value.trim();
+  const serie       = document.getElementById('f-serie').value.trim();
+  const placa       = document.getElementById('f-placa').value.trim();
+  const usuario     = document.getElementById('f-usuario').value.trim();
+  const diagnostico = document.getElementById('f-diagnostico').value;
+  const departamento= document.getElementById('f-departamento').value;
+
+  if (!numero || !marca || !modelo || !diagnostico || !departamento) {
+    toast('Completa los campos obligatorios (*)','error');
+    return;
+  }
+
+  registros.push({ numero, marca, modelo, serie, placa, usuario, diagnostico, departamento });
+  renderTabla();
+  limpiarFormulario();
+  toast(`✓ Registro #${numero} agregado correctamente`,'success');
+}
+
+// ── Limpiar formulario ────────────────────────────────────────────────────
+function limpiarFormulario() {
+  ['f-numero','f-marca','f-modelo','f-serie','f-placa','f-usuario'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-diagnostico').selectedIndex = 0;
+  document.getElementById('f-departamento').selectedIndex = 0;
+  document.getElementById('f-numero').focus();
+}
+
+// ── Eliminar registro ─────────────────────────────────────────────────────
+function eliminarRegistro(idx) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  registros.splice(idx, 1);
+  renderTabla();
+  toast('Registro eliminado','error');
+}
+
+// ── Renderizar tabla ──────────────────────────────────────────────────────
+function badgeClass(d) {
+  if (d === 'BUEN ESTADO') return 'badge-ok';
+  if (d === 'SOLO REGLETA') return 'badge-reg';
+  if (d === 'DAÑADA') return 'badge-bad';
+  if (d === 'NUEVO') return 'badge-new';
+  return '';
+}
+
+function renderTabla() {
+  const tbody = document.getElementById('tabla-body');
+  if (registros.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><span class="icon">📦</span>Aún no hay registros.</div></td></tr>`;
+    document.getElementById('stats').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = registros.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${r.numero}</td>
+      <td>${r.marca}</td>
+      <td>${r.modelo}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:#7d8590;">${r.serie || '—'}</td>
+      <td>${r.placa || '—'}</td>
+      <td>${r.usuario || '—'}</td>
+      <td><span class="badge ${badgeClass(r.diagnostico)}">${r.diagnostico}</span></td>
+      <td style="font-size:12px;color:#7d8590;">${r.departamento}</td>
+      <td><button class="delete-btn" onclick="eliminarRegistro(${i})" title="Eliminar">✕</button></td>
+    </tr>
+  `).join('');
+
+  // Stats
+  const total  = registros.length;
+  const buenos = registros.filter(r => r.diagnostico === 'BUEN ESTADO').length;
+  const dañados= registros.filter(r => r.diagnostico === 'DAÑADA').length;
+  const nuevos = registros.filter(r => r.diagnostico === 'NUEVO').length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><strong>${total}</strong> equipos</div>
+    <div class="stat" style="color:#3fb950"><strong>${buenos + nuevos}</strong> operativos</div>
+    <div class="stat" style="color:#f85149"><strong>${dañados}</strong> dañados</div>
+  `;
+}
+
+// ── Exportar a Excel ──────────────────────────────────────────────────────
+function exportarExcel() {
+  if (registros.length === 0) { toast('No hay registros para exportar','error'); return; }
+
+  const datos = [['NUMERO','MARCA','MODELO','SERIE','PLACA PATRIMONIAL','USUARIO','DIAGNÓSTICO','DEPARTAMENTO']];
+  registros.forEach(r => datos.push([r.numero, r.marca, r.modelo, r.serie, r.placa, r.usuario, r.diagnostico, r.departamento]));
+
+  const ws = XLSX.utils.aoa_to_sheet(datos);
+  ws['!cols'] = [8,22,18,26,18,22,14,26].map(w => ({wch: w}));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Hoja 1');
+  XLSX.writeFile(wb, 'Inventario_UPS_Actualizado.xlsx');
+  toast('✓ Archivo Excel descargado', 'success');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  setTimeout(() => { el.className = ''; }, 3000);
+}
+</script>
+</body>
+</html>
